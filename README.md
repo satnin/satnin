@@ -34,7 +34,7 @@ Je code avec curiosité, rigueur, et une touche de folie (cf. [SatVerse](https:/
 - 🕸️ Reflekt++ – Framework web C++ basé annotation (en cours)  
 - 🎮 Joystick MIDI DIY pour synthé modulaire
 
-➡️ Tous les projets sont détaillés sur [mon site](https://saturnin-wanonkou.fr/projets)
+➡️ Tous les projets sont détaillés sur [mon site](https://saturnin-wanonkou.fr/projects)
 
 ---
 
