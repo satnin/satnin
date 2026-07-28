@@ -1,0 +1,88 @@
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.asRequestBody
+import java.io.File
+
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.squareup.okhttp3:okhttp:4.12.0")
+    }
+}
+
+plugins {
+    id("java")
+}
+
+group = "com.picalys.test"
+version = "1.0-SNAPSHOT"
+
+
+dependencies {
+    testImplementation(platform("org.junit:junit-bom:5.10.0"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+}
+
+tasks.test {
+    useJUnitPlatform()
+}
+
+val serverUrl: String = (project.findProperty("serverUrl") as String?) ?: "http://127.0.0.1:5657"
+val defaultUploadFile = layout.projectDirectory.file("src/main/resources/model/test.txt").asFile.path
+val uploadFile: String = (project.findProperty("uploadFile") as String?) ?: defaultUploadFile
+val downloadDir = layout.buildDirectory.dir("downloads")
+
+tasks.register("restCall") {
+    group = "microej"
+    description = "Effectue des appels REST (GET, upload multipart, download) avant le build"
+
+    doLast {
+        val client = OkHttpClient()
+
+        // 2. POST multipart avec upload de fichier
+        val file = File(uploadFile)
+        if (!file.exists()) {
+            throw GradleException("Fichier à uploader introuvable : $uploadFile")
+        }
+
+        val requestBody = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart(
+                "file",
+                file.name,
+                file.asRequestBody("application/octet-stream".toMediaTypeOrNull())
+            )
+            .addFormDataPart("config", "{}")
+            .build()
+
+        val postRequest = Request.Builder()
+            .url("$serverUrl/process")
+            .post(requestBody)
+            .build()
+
+        client.newCall(postRequest).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw GradleException("Upload échoué : ${response.code}")
+            }
+            val targetDir = downloadDir.get().asFile
+            targetDir.mkdirs()
+            val targetFile = File(targetDir, "result.zip")
+
+            response.body?.byteStream()?.use { input ->
+                targetFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            logger.lifecycle("Upload réussi : ${response.code}")
+        }
+
+    }
+}
+
+tasks.named("build") {
+    dependsOn("restCall")
+}
